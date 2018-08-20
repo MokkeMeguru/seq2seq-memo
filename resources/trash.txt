@@ -1,0 +1,118 @@
+
+        final ComputationGraphConfiguration.GraphBuilder graphBuilder =
+                builder.graphBuilder()
+                        .pretrain(false)
+                        .backprop(true)
+                        .backpropType(BackpropType.Standard)
+                        .addInputs("encoderLine", "decoderLine")
+                        .setInputTypes(InputType.recurrent(dictSize),
+                                InputType.recurrent(dictSize))
+                        .addLayer("embeddingEncoder",
+                                new EmbeddingLayer.Builder()
+                                        .nIn(dictSize)
+                                        .nOut(dictSize)
+                                        .build(),
+                                "encoderLine")
+                        .addLayer("encoder",
+                                new LSTM.Builder()
+                                        .nIn(dictSize)
+                                        .nOut(dictSize)
+                                        .activation(Activation.TANH)
+                                        .build(),
+                                "embeddingEncoder")
+                        .addVertex("thoughtVector",
+                                new LastTimeStepVertex("encoderLine"),
+                                "encoder")
+                        .addVertex("dup",
+                                new DuplicateToTimeSeriesVertex("decoderLine"),
+                                "thoughtVector")
+                        .addVertex("merge",
+                                new MergeVertex(),
+                                "decoderLine","dup")
+                        .addLayer("decoder",
+                                new LSTM.Builder()
+                                    .nIn(dictSize + dictSize)
+                                    .nOut(dictSize)
+                                    .activation(Activation.TANH)
+                                    .build(),
+                                "merge")
+                        .addLayer("output",
+                                new RnnOutputLayer.Builder()
+                                    .nIn(dictSize)
+                                    .nOut(dictSize)
+                                    .activation(Activation.SOFTMAX)
+                                    .lossFunction(LossFunctions.LossFunction.MCXENT)
+                                    .build(),
+                                "decoder")
+                        .setOutputs("output");
+
+:first
+
+    public void initNetWork(boolean showUI) {
+        final NeuralNetConfiguration.Builder builder =
+                new NeuralNetConfiguration.Builder()
+                        .seed(246)
+                        .updater(new RmsProp(1e-1))
+                        .weightInit(WeightInit.XAVIER)
+                        .gradientNormalization(GradientNormalization.RenormalizeL2PerLayer);
+
+        final ComputationGraphConfiguration.GraphBuilder graphBuilder =
+                builder.graphBuilder()
+                        .pretrain(false)
+                        .backprop(true)
+                        .backpropType(BackpropType.Standard)
+                        .tBPTTBackwardLength(25)
+                        .tBPTTForwardLength(25)
+                        .addInputs("encoderLine", "decoderLine")
+                        .setInputTypes(InputType.recurrent(dictSize),
+                                InputType.recurrent(dictSize))
+                        .addLayer("embeddingEncoder",
+                                new EmbeddingLayer.Builder()
+                                        .nIn(dictSize)
+                                        .nOut(128)
+                                        .build(),
+                                "encoderLine")
+                        .addLayer("encoder",
+                                new LSTM.Builder()
+                                        .nIn(128)
+                                        .nOut(512)
+                                        .activation(Activation.TANH)
+                                        .build(),
+                                "embeddingEncoder")
+                        .addVertex("thoughtVector",
+                                new LastTimeStepVertex("encoderLine"),
+                                "encoder")
+                        .addVertex("dup",
+                                new DuplicateToTimeSeriesVertex("decoderLine"),
+                                "thoughtVector")
+                        .addVertex("merge",
+                                new MergeVertex(),
+                                "decoderLine","dup")
+                        .addLayer("decoder",
+                                new LSTM.Builder()
+                                    .nIn(dictSize + 512)
+                                    .nOut(512)
+                                    .activation(Activation.TANH)
+                                    .build(),
+                                "merge")
+                        .addLayer("output",
+                                new RnnOutputLayer.Builder()
+                                    .nIn(512)
+                                    .nOut(dictSize)
+                                    .activation(Activation.SOFTMAX)
+                                    .lossFunction(LossFunctions.LossFunction.MCXENT)
+                                    .build(),
+                                "decoder")
+                        .setOutputs("output");
+
+// batch 200/2
+:third
+
+1e-3
+
+:forth
+
+600 epoch
+backprop 50
+pretrain true
+5e-2
